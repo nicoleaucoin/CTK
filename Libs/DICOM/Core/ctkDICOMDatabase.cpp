@@ -290,7 +290,10 @@ void ctkDICOMDatabasePrivate::removeBackupFileList()
 
 
 //------------------------------------------------------------------------------
-void ctkDICOMDatabase::openDatabase(const QString databaseFile, const QString& connectionName )
+void ctkDICOMDatabase::openDatabase(const QString databaseFile,
+				    const QString& connectionName,
+				    const QString& userName,
+				    const QString& password )
 {
   Q_D(ctkDICOMDatabase);
   d->DatabaseFileName = databaseFile;
@@ -301,10 +304,33 @@ void ctkDICOMDatabase::openDatabase(const QString databaseFile, const QString& c
     }
   d->Database = QSqlDatabase::addDatabase("QSQLITE", verifiedConnectionName);
   d->Database.setDatabaseName(databaseFile);
-  if ( ! (d->Database.open()) )
+  bool openFlag = false;
+  if ( !password.isEmpty() )
     {
-      d->LastError = d->Database.lastError().text();
-      return;
+    openFlag = d->Database.open(userName, password);
+    }
+  else
+    {
+    openFlag =  d->Database.open();
+    }
+  if ( ! openFlag )
+    {
+    d->LastError = d->Database.lastError().text();
+    return;
+    }
+  if ( !password.isEmpty() )
+    {
+    if ( password != d->Database.password() )
+      {
+	std::cerr << "openDatabase: password '"
+		  << password
+		  << "' not set on database: '"
+		  << d->Database.password()
+		  << "'"
+		  << std::endl;
+	d->LastError = QSqlError::ConnectionError;
+	return;
+      }
     }
   if ( d->Database.tables().empty() )
     {
