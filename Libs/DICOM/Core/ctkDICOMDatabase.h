@@ -107,9 +107,14 @@ public:
   ///        then a random name is generated (reusing a connection name
   ///        must be avoided as it breaks previously created database object
   ///        that used the same connection name).
+  /// @param userName The database user name. If not specified, no user name
+  ///        is used.
+  /// @param password The database password. If not specified, no password used.
   /// @param update the schema if it is found to be out of date
   Q_INVOKABLE virtual void openDatabase(const QString databaseFile,
-                                        const QString& connectionName = "");
+                                        const QString& connectionName = "",
+					const QString& userName = "",
+					const QString& password = "");
 
   ///
   /// close the database. It must not be used afterwards.
