@@ -23,6 +23,9 @@
 #include <QDir>
 #include <QTimer>
 
+// CTK includes
+#include "ctkCoreTestingMacros.h"
+
 // ctkDICOMCore includes
 #include "ctkDICOMDatabase.h"
 
@@ -40,58 +43,29 @@ int ctkDICOMDatabaseTest8( int argc, char * argv [] )
   QFileInfo databaseFile(databaseDirectory, QString("database.test"));
 
   // Testing setting a password on a database with no user name
-  const QString userName = "";
+  const QString emptyUserName = "";
   const QString connectionName = "testConnection";
   
   // test with null password
-  database.openDatabase(databaseFile.absoluteFilePath(), connectionName, userName, NULL);
-  if (!database.lastError.isEmpty())
-    {
-    std::cerr << "ctkDICOMDatabase::openDatabase() with NULL password failed: "
-	      << qPrintable(database.lastError()) << std::endl;
-    return EXIT_FAILURE;
-    }
+  database.openDatabase(databaseFile.absoluteFilePath(), connectionName, emptyUserName, NULL);
+  CHECK_QSTRING(database.lastError(), QString());
 
   // test with empty password
-  database.openDatabase(databaseFile.absoluteFilePath(), connectionName, userName, "");
-  if (!database.lastError.isEmpty())
-    {
-    std::cerr << "ctkDICOMDatabase::openDatabase() with empty password failed: "
-	      << qPrintable(database.lastError()) << std::endl;
-    return EXIT_FAILURE;
-    }
+  database.openDatabase(databaseFile.absoluteFilePath(), connectionName, emptyUserName, "");
+  CHECK_QSTRING(database.lastError(), QString());
 
-  // test with valid password
-  const QString testPassword = 'testingPassword';
+  // test with valid password, this fails without the user name set
+  const QString testPassword = "testingPassword";
+  database.openDatabase(databaseFile.absoluteFilePath(), connectionName, emptyUserName, testPassword);
+  CHECK_QSTRING_DIFFERENT(database.lastError(), QString());
+
+  // test with valid password and user name
+  const QString userName = "testUser";
   database.openDatabase(databaseFile.absoluteFilePath(), connectionName, userName, testPassword);
-
-  if (!database.lastError().isEmpty())
-    {
-    std::cerr << "ctkDICOMDatabase::openDatabase() with password failed: "
-              << qPrintable(database.lastError()) << std::endl;
-    return EXIT_FAILURE;
-    }
-
-  if (!database.database().isValid())
-    {
-    std::cerr << "ctkDICOMDatabase::openDatabase() with password failed: "
-              << "invalid sql database" << std::endl;
-    return EXIT_FAILURE;
-    }
-
-  if (database.isInMemory())
-    {
-    std::cerr << "ctkDICOMDatabase::openDatabase() with password failed: "
-              << "database should not be in memory" << std::endl;
-    return EXIT_FAILURE;    
-    }
-
-  if (database.databaseFilename() != databaseFile.absoluteFilePath())
-    {
-    std::cerr << "ctkDICOMDatabase::databaseFilename() with password failed: "
-              << qPrintable( database.databaseFilename()) << std::endl;
-    return EXIT_FAILURE;
-    }
+  CHECK_QSTRING(database.lastError(), QString());
+  CHECK_BOOL(database.database().isValid(), true);
+  CHECK_BOOL(database.isInMemory(), false);
+  CHECK_QSTRING(database.databaseFilename(), databaseFile.absoluteFilePath());
 
   if (QDir(database.databaseDirectory()) != databaseDirectory)
     {
@@ -101,12 +75,7 @@ int ctkDICOMDatabaseTest8( int argc, char * argv [] )
     }
 
   bool res = database.initializeDatabase();
-  
-  if (!res)
-    {
-    std::cerr << "ctkDICOMDatabase::initializeDatabase() with password failed." << std::endl;
-    return EXIT_FAILURE;
-    }
+  CHECK_BOOL(res, true);
 
   // check if it doesn't crash
   database.insert(0, true, true);
@@ -114,8 +83,18 @@ int ctkDICOMDatabaseTest8( int argc, char * argv [] )
   database.insert(0, false, true);
   database.insert(0, false, false);
 
+  // close, must not be used afterward
   database.closeDatabase();
-  database.initializeDatabase();
+  std::cout << "\tDatabase closed." << std::endl;
+
+  // try to reopen it with a different password, same user
+  //const QString newPassword = "somethingNew";
+  //database.openDatabase(databaseFile.absoluteFilePath(), connectionName, userName, newPassword);
+  //CHECK_QSTRING_DIFFERENT(database.lastError(), QString());
+
+  // this deletes all data
+  bool initFlag = database.initializeDatabase();
+  CHECK_BOOL(initFlag, true);
 
   return EXIT_SUCCESS;
 }
