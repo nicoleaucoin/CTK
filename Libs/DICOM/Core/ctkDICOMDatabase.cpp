@@ -296,6 +296,9 @@ void ctkDICOMDatabase::openDatabase(const QString databaseFile,
 				    const QString& password )
 {
   Q_D(ctkDICOMDatabase);
+  // reset the error string
+  d->LastError = QString();
+
   d->DatabaseFileName = databaseFile;
   QString verifiedConnectionName = connectionName;
   if (verifiedConnectionName.isEmpty())
@@ -307,6 +310,11 @@ void ctkDICOMDatabase::openDatabase(const QString databaseFile,
   bool openFlag = false;
   if ( !password.isEmpty() )
     {
+    if (userName.isEmpty())
+      {
+      d->LastError = QString("Empty user name with password.");
+      return;
+      }
     openFlag = d->Database.open(userName, password);
     }
   else
@@ -315,21 +323,19 @@ void ctkDICOMDatabase::openDatabase(const QString databaseFile,
     }
   if ( ! openFlag )
     {
+    std::cerr << "openDatabase: failed to open." << std::endl;
     d->LastError = d->Database.lastError().text();
     return;
     }
+
   if ( !password.isEmpty() )
     {
-    if ( password != d->Database.password() )
+    // because the password was not set with setPassword but passed in
+    // via the open call, the database password() call returns an empty string
+    if ( !d->Database.password().isEmpty() )
       {
-	std::cerr << "openDatabase: password '"
-		  << password
-		  << "' not set on database: '"
-		  << d->Database.password()
-		  << "'"
-		  << std::endl;
-	d->LastError = QSqlError::ConnectionError;
-	return;
+      d->LastError = QString("Failed to set password on database.");
+      return;
       }
     }
   if ( d->Database.tables().empty() )
